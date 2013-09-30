@@ -1,0 +1,13 @@
+#! /bin/sh
+#
+# Convenience driver script.  If lqt was compiled locally, use that
+# version.  Otherwise, fallback to the pre-built self-standing
+# executable jar shipped with the distribution.
+
+cd `dirname $0`
+
+if [ -e target/classes/com/basistech/lucene/tools/LuceneQueryTool.class ]; then
+    java "$JVM_ARGS" -cp `cat classpath.txt`:target/classes com.basistech.lucene.tools.LuceneQueryTool "$@"
+else
+    java -jar lqt-1-SNAPSHOT-jar-with-dependencies.jar "$@"
+fi
