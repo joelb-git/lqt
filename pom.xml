@@ -5,6 +5,11 @@
   <artifactId>lqt</artifactId>
   <version>1-SNAPSHOT</version>
   <name>lqt</name>
+  <scm>
+    <connection>scm:git:git@github.com:joelb-git/lqt.git</connection>
+    <developerConnection>scm:git:git@github.com:joelb-git/lqt.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
   <build>
     <plugins>
       <plugin>
