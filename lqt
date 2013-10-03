@@ -7,7 +7,7 @@
 cd `dirname $0`
 
 if [ -e target/classes/com/basistech/lucene/tools/LuceneQueryTool.class ]; then
-    java -cp `cat classpath.txt`:target/classes com.basistech.lucene.tools.LuceneQueryTool "$@"
+    java -Dfile.encoding=UTF-8 -cp `cat classpath.txt`:target/classes com.basistech.lucene.tools.LuceneQueryTool "$@"
 else
-    java -jar lqt-1-SNAPSHOT-jar-with-dependencies.jar "$@"
+    java -Dfile.encoding=UTF-8 -jar lqt-1-SNAPSHOT-jar-with-dependencies.jar "$@"
 fi

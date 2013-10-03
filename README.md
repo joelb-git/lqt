@@ -52,6 +52,13 @@ pre-built self-standing executable jar.
 
 `lqt` is currently targets Java 1.7 and Lucene 4.3.0.
 
+Building
+--------
+
+>     $ git clone git@github.com:joelb-git/lqt.git
+>     $ cd lqt
+>     $ mvn install
+
 Examples
 --------
 
