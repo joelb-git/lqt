@@ -54,8 +54,8 @@ public class LuceneQueryToolTest {
     @BeforeClass
     public static void oneTimeSetup() throws IOException, ParseException {
         Directory dir = new RAMDirectory();
-        Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_43);
-        IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_43, analyzer);
+        Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_45);
+        IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_45, analyzer);
         IndexWriter writer = new IndexWriter(dir, config);
         Document doc = new Document();
         doc.add(new Field("longest-mention", "Bill Clinton", StringField.TYPE_STORED));
