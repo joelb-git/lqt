@@ -50,7 +50,8 @@ pre-built self-standing executable jar.
 >         --tabular              print tabular output (requires --fields with no
 >                                multivalued fields)
 
-`lqt` is currently targets Java 1.7 and Lucene 4.3.0.
+`lqt` currently targets Java 1.7 and Lucene 4.5.0, although I've used
+it successfully against indexes built with Lucene 4.3.0.
 
 Building
 --------

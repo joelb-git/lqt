@@ -40,7 +40,7 @@
 	<!-- To create a self-standing executable jar, run:
 	     $ mvn clean compile assembly:single
 	     Then you can run like this:
-	     $ java -jar target/gcoref-csv-tool-39-SNAPSHOT-jar-with-dependencies.jar
+	     $ java -jar target/lqt-2-SNAPSHOT-jar-with-dependencies.jar
 	-->
 	<artifactId>maven-assembly-plugin</artifactId>
 	<configuration>
