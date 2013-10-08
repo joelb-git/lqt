@@ -125,7 +125,7 @@ public final class LuceneQueryTool {
         this.fieldNames = Lists.newArrayList();
         this.out = out;
         allFieldNames = Sets.newTreeSet();
-        for (FieldInfo fieldInfo : new SlowCompositeReaderWrapper(reader).getFieldInfos()) {
+        for (FieldInfo fieldInfo : SlowCompositeReaderWrapper.wrap(reader).getFieldInfos()) {
             allFieldNames.add(fieldInfo.name);
         }
     }
@@ -149,7 +149,7 @@ public final class LuceneQueryTool {
             this.analyzer = new KeywordAnalyzer();
             break;
         case "StandardAnalyzer":
-            this.analyzer = new StandardAnalyzer(Version.LUCENE_43);
+            this.analyzer = new StandardAnalyzer(Version.LUCENE_45);
             break;
         default:
             throw new RuntimeException(
@@ -303,7 +303,7 @@ public final class LuceneQueryTool {
             if (!queryString.contains(":") && defaultField == null) {
                 throw new RuntimeException("query has no ':' and no query-field defined");
             }
-            QueryParser queryParser = new QueryParser(Version.LUCENE_43, defaultField, analyzer);
+            QueryParser queryParser = new QueryParser(Version.LUCENE_45, defaultField, analyzer);
             queryParser.setLowercaseExpandedTerms(false);
             query = queryParser.parse(queryString).rewrite(indexReader);
             Set<Term> terms = Sets.newHashSet();
