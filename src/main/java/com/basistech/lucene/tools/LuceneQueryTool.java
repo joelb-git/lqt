@@ -144,14 +144,11 @@ public final class LuceneQueryTool {
     }
 
     void setAnalyzer(String analyzerString) {
-        switch (analyzerString) {
-        case "KeywordAnalyzer":
+        if ("KeywordAnalyzer".equals(analyzerString)) {
             this.analyzer = new KeywordAnalyzer();
-            break;
-        case "StandardAnalyzer":
+        } else if ("StandardAnalyzer".equals(analyzerString)) {
             this.analyzer = new StandardAnalyzer(Version.LUCENE_45);
-            break;
-        default:
+        } else {
             throw new RuntimeException(
                     String.format("Invalid analyzer %s: %s",
                             analyzerString,
@@ -222,33 +219,27 @@ public final class LuceneQueryTool {
         if (sortFields) {
             Collections.sort(fieldNames);
         }
-        switch (queryOpts[0]) {
-        case "%ids":
+        String opt = queryOpts[0]; 
+        if ("%ids".equals(opt)) {
             List<String> ids = Lists.newArrayList(Arrays.copyOfRange(queryOpts, 1, queryOpts.length));
             dumpIds(ids.iterator());
-            break;
-        case "%id-file":
+        } else if ("%id-file".equals(opt)) {
             Iterator<String> iterator = new LineIterator(new BufferedReader(
                     new FileReader(queryOpts[1])));
             dumpIds(iterator);
-            break;
-        case "%all":
+        } else if ("%all".equals(opt)) {
             runQuery(null);
-            break;
-        case "%enumerate-fields":
+        } else if ("%enumerate-fields".equals(opt)) {
             for (String fieldName : allFieldNames) {
                 out.println(fieldName);
             }
-            break;
-        case "%enumerate-terms":
+        } else if ("%enumerate-terms".equals(opt)) {
             if (queryOpts.length != 2) {
                 throw new RuntimeException("%enumerate-terms requires exactly one field.");
             }
             enumerateTerms(queryOpts[1]);
-            break;
-        default:
+        } else {
             runQuery(queryOpts[0]);
-            break;
         }
     }
 
@@ -269,7 +260,7 @@ public final class LuceneQueryTool {
         List<AtomicReaderContext> leaves = indexReader.leaves();
         TermsEnum termsEnum = null;
         boolean unindexedField = true;
-        Map<String, Integer> termCountMap = new TreeMap<>();
+        Map<String, Integer> termCountMap = new TreeMap<String, Integer>();
         for (AtomicReaderContext leaf : leaves) {
             Terms terms = leaf.reader().terms(field);
             if (terms == null) {

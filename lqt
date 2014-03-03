@@ -4,10 +4,12 @@
 # version.  Otherwise, fallback to the pre-built self-standing
 # executable jar shipped with the distribution.
 
-cd `dirname $0`
+dir=$(dirname $0)
+echo $dir
+CP=$dir:$dir/target/classes:$(cat $dir/classpath.txt)
 
-if [ -e target/classes/com/basistech/lucene/tools/LuceneQueryTool.class ]; then
-    java -Dfile.encoding=UTF-8 -cp `cat classpath.txt`:target/classes com.basistech.lucene.tools.LuceneQueryTool "$@"
+if [ -e $dir/target/classes/com/basistech/lucene/tools/LuceneQueryTool.class ]; then
+    java -Dfile.encoding=UTF-8 -cp $CP com.basistech.lucene.tools.LuceneQueryTool "$@"
 else
-    java -Dfile.encoding=UTF-8 -jar lqt-*-jar-with-dependencies.jar "$@"
+    java -Dfile.encoding=UTF-8 -jar $dir/lqt-*-jar-with-dependencies.jar "$@"
 fi
