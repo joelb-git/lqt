@@ -85,14 +85,14 @@ Technology](http://www.basistech.com/).
   at least once.  Note that an unindexed field will show up with count
   0.
 
->    $ ./lqt -i /tmp/index -q %count-fields
->    ...
->    c-alias: 2992452
->    c-cluster-id: 3101383
->    c-entity-type: 3101383
->    crossdoc-id: 3765425
->    longest-mention: 3765425
->    ...
+>     $ ./lqt -i /tmp/index -q %count-fields
+>     ...
+>     c-alias: 2992452
+>     c-cluster-id: 3101383
+>     c-entity-type: 3101383
+>     crossdoc-id: 3765425
+>     longest-mention: 3765425
+>     ...
 
 * Count all documents with a c-cluster-id field.
 
