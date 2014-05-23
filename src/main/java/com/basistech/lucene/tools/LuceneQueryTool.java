@@ -83,8 +83,8 @@ import java.util.regex.Pattern;
  *  -i,--index <arg>          index (required)
  *     --output-limit <arg>   max number of docs to output
  *  -q,--query <arg>          (query | %all | %enumerate-fields |
- *                            %enumerate-terms field | %ids id [id ...] |
- *                            %id-file file) (required)
+ *                            %count-fields | %enumerate-terms field | %ids
+ *                            id [id ...] | %id-file file) (required)
  *     --query-field <arg>    default field for query
  *     --query-limit <arg>    max number of query hits to process
  *     --regex <arg>          filter query by regex, syntax is field:/regex/
@@ -96,6 +96,7 @@ import java.util.regex.Pattern;
  *     --tabular              print tabular output (requires --fields with no
  *                            multivalued fields)
  * </pre>
+ *
  */
 public final class LuceneQueryTool {
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
@@ -233,6 +234,8 @@ public final class LuceneQueryTool {
             for (String fieldName : allFieldNames) {
                 out.println(fieldName);
             }
+        } else if ("%count-fields".equals(opt)) {
+            countFields();
         } else if ("%enumerate-terms".equals(opt)) {
             if (queryOpts.length != 2) {
                 throw new RuntimeException("%enumerate-terms requires exactly one field.");
@@ -283,6 +286,25 @@ public final class LuceneQueryTool {
         }
         for (Map.Entry<String, Integer> entry : termCountMap.entrySet()) {
             out.println(entry.getKey() + " (" + entry.getValue() + ")");
+        }
+    }
+
+    private void countFields() throws IOException {
+        for (String field : allFieldNames) {
+            List<AtomicReaderContext> leaves = indexReader.leaves();
+            Map<String, Integer> fieldCounts = new TreeMap<String, Integer>();
+            int count = 0;
+            for (AtomicReaderContext leaf : leaves) {
+                Terms terms = leaf.reader().terms(field);
+                if (terms == null) {
+                    continue;
+                }
+                count += terms.getDocCount();
+            }
+            fieldCounts.put(field, count);
+            for (Map.Entry<String, Integer> entry : fieldCounts.entrySet()) {
+                out.println(entry.getKey() + ": " + entry.getValue());
+            }
         }
     }
 
@@ -428,7 +450,11 @@ public final class LuceneQueryTool {
         option.setArgs(1);
         options.addOption(option);
 
-        option = new Option("q", "query", true, "(query | %all | %enumerate-fields | %enumerate-terms field | %ids id [id ...] | %id-file file) (required)");
+        option = new Option("q", "query", true,
+            "(query | %all | %enumerate-fields "
+                + "| %count-fields "
+                + "| %enumerate-terms field "
+                + "| %ids id [id ...] | %id-file file) (required)");
         option.setRequired(true);
         option.setArgs(Option.UNLIMITED_VALUES);
         options.addOption(option);
@@ -473,7 +499,8 @@ public final class LuceneQueryTool {
         option = new Option(null, "suppress-names", false, "suppress printing of field names");
         options.addOption(option);
 
-        option = new Option(null, "tabular", false, "print tabular output (requires --fields with no multivalued fields)");
+        option = new Option(null, "tabular", false, "print tabular output "
+            + "(requires --fields with no multivalued fields)");
         options.addOption(option);
 
         return options;
@@ -483,9 +510,10 @@ public final class LuceneQueryTool {
     // after an option that accepts unlimited values, no error is produced.
     private static void validateOptions(Options options, String[] args) throws org.apache.commons.cli.ParseException {
         Set<String> optionNames = Sets.newHashSet();
-        Iterator iter = options.getOptions().iterator();  // non-generic forced by commons.cli api
-        while (iter.hasNext()) {
-            Option option = (Option) iter.next();
+
+        // non-generic forced by commons.cli api
+        for (Object o : options.getOptions()) {
+            Option option = (Option) o;
             optionNames.add(option.getLongOpt());
             String shortOpt = option.getOpt();
             if (shortOpt != null) {

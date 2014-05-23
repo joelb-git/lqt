@@ -25,10 +25,10 @@ very useful for our Lucene projects.
 Usage
 -----
 
-Invoke `lqt` with the supplied driver script.  When built from source,
-the driver picks up the compiled classes.  Otherwise it picks up a
-pre-built self-standing executable jar.
+Invoke `lqt` with the supplied driver script, after compiling the
+project:
 
+>     $ mvn compile
 >     $ ./lqt
 >     usage: LuceneQueryTool [options]
 >         --analyzer <arg>       for query, (KeywordAnalyzer | StandardAnalyzer)
@@ -37,8 +37,8 @@ pre-built self-standing executable jar.
 >      -i,--index <arg>          index (required)
 >         --output-limit <arg>   max number of docs to output
 >      -q,--query <arg>          (query | %all | %enumerate-fields |
->                                %enumerate-terms field | %ids id [id ...] |
->                                %id-file file) (required)
+>                                %count-fields | %enumerate-terms field | %ids
+>                                id [id ...] | %id-file file) (required)
 >         --query-field <arg>    default field for query
 >         --query-limit <arg>    max number of query hits to process
 >         --regex <arg>          filter query by regex, syntax is field:/regex/
@@ -58,7 +58,7 @@ Building
 
 >     $ git clone git@github.com:joelb-git/lqt.git
 >     $ cd lqt
->     $ mvn install
+>     $ mvn compile
 
 Examples
 --------
@@ -78,6 +78,21 @@ Technology](http://www.basistech.com/).
 >     crossdoc-id
 >     longest-mention
 >     ...
+
+* Count the fields
+
+  For each field, this shows the number of documents where it occurs
+  at least once.  Note that an unindexed field will show up with count
+  0.
+
+>    $ ./lqt -i /tmp/index -q %count-fields
+>    ...
+>    c-alias: 2992452
+>    c-cluster-id: 3101383
+>    c-entity-type: 3101383
+>    crossdoc-id: 3765425
+>    longest-mention: 3765425
+>    ...
 
 * Count all documents with a c-cluster-id field.
 

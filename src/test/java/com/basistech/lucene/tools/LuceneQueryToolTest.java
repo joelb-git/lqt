@@ -49,10 +49,11 @@ import static org.junit.Assert.assertTrue;
 
 public class LuceneQueryToolTest {
     private static DirectoryReader reader;
-    private static boolean showOutput;  // for debugging tests
+    private static boolean showOutput;
 
     @BeforeClass
     public static void oneTimeSetup() throws IOException, ParseException {
+        LuceneQueryToolTest.showOutput = false;  // for debugging tests
         Directory dir = new RAMDirectory();
         Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_45);
         IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_45, analyzer);
@@ -324,6 +325,21 @@ public class LuceneQueryToolTest {
         assertTrue(lines.contains("context"));
         assertTrue(lines.contains("longest-mention"));
         assertTrue(lines.contains("zzz"));
+    }
+
+    @Test
+    public void testCountFields() throws IOException, ParseException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
+        lqt.run(new String[]{"%count-fields"});
+        List<String> lines = getOutput(bytes);
+        assertEquals(5, lines.size());
+        assertTrue(lines.contains("aaa: 1"));
+        assertTrue(lines.contains("bbb: 1"));
+        assertTrue(lines.contains("context: 3"));
+        assertTrue(lines.contains("longest-mention: 3"));
+        assertTrue(lines.contains("zzz: 0"));  // 0 because not indexed
     }
 
     @Test
