@@ -3,7 +3,7 @@
 # Convenience driver script.
 
 dir=$(dirname $0)
-CP=$dir:$dir/target/classes:$(cat $dir/classpath.txt)
+CP=$dir:$dir/target/classes:$(cat $dir/target/classpath.txt)
 
 if [ -e $dir/target/classes/com/basistech/lucene/tools/LuceneQueryTool.class ]; then
     java $JVM_ARGS -Dfile.encoding=UTF-8 -cp $CP com.basistech.lucene.tools.LuceneQueryTool "$@"

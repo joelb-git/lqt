@@ -19,6 +19,7 @@
 
 package com.basistech.lucene.tools;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -34,29 +35,33 @@ import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.CompositeReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
+import org.apache.tools.ant.types.Commandline;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -115,20 +120,24 @@ public final class LuceneQueryTool {
     private boolean tabular;
     private boolean suppressNames;
     private IndexReader indexReader;
-    private PrintStream out;
+    private PrintStream defaultOut;
     private int docsPrinted;
 
-    LuceneQueryTool(CompositeReader reader, PrintStream out) throws IOException {
+    LuceneQueryTool(IndexReader reader, PrintStream out) throws IOException {
         this.indexReader = reader;
         this.queryLimit = Integer.MAX_VALUE;
         this.outputLimit = Integer.MAX_VALUE;
         this.analyzer = new KeywordAnalyzer();
         this.fieldNames = Lists.newArrayList();
-        this.out = out;
+        this.defaultOut = out;
         allFieldNames = Sets.newTreeSet();
         for (FieldInfo fieldInfo : SlowCompositeReaderWrapper.wrap(reader).getFieldInfos()) {
             allFieldNames.add(fieldInfo.name);
         }
+    }
+
+    LuceneQueryTool(IndexReader reader) throws IOException {
+        this(reader, System.out);
     }
 
     void setFieldNames(List<String> fieldNames) {
@@ -163,6 +172,10 @@ public final class LuceneQueryTool {
 
     void setOutputLimit(int outputLimit) {
         this.outputLimit = outputLimit;
+    }
+
+    void setOutputStream(PrintStream out) {
+        this.defaultOut = out;
     }
 
     void setRegex(String regexField, Pattern regex) {
@@ -208,7 +221,10 @@ public final class LuceneQueryTool {
     }
 
     void run(String[] queryOpts) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
-        docsPrinted = 0;
+        run(queryOpts, defaultOut);
+    }
+
+    void run(String[] queryOpts, PrintStream out) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
         if (tabular && fieldNames == null) {
             // Unlike a SQL result set, Lucene docs from a single query (or %all) may
             // have different fields, so a tabular format won't make sense unless we
@@ -229,7 +245,7 @@ public final class LuceneQueryTool {
                     new FileReader(queryOpts[1])));
             dumpIds(iterator);
         } else if ("%all".equals(opt)) {
-            runQuery(null);
+            runQuery(null, out);
         } else if ("%enumerate-fields".equals(opt)) {
             for (String fieldName : allFieldNames) {
                 out.println(fieldName);
@@ -241,17 +257,73 @@ public final class LuceneQueryTool {
                 throw new RuntimeException("%enumerate-terms requires exactly one field.");
             }
             enumerateTerms(queryOpts[1]);
+        } else if ("%script".equals(opt)) {
+            if (queryOpts.length != 2) {
+                throw new RuntimeException("%script requires exactly one arg.");
+            }
+            runScript(queryOpts[1]);
         } else {
-            runQuery(queryOpts[0]);
+            runQuery(queryOpts[0], out);
         }
     }
 
+    // For now, script supports only -q (only simple, no % queries) and -o.
+    // Might be nicer, eventually, to have all the other command line opts
+    // apply for each script line, overriding the default command line level
+    // setting.  But that can come later if we think it's useful.
+    void runScript(String scriptPath) throws IOException, ParseException {
+        // Sorry, I'm skipping try/finally until I can move to java 1.7 to get
+        // try-with-resources.  I think we can move to 1.7 soon.
+        BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(scriptPath), Charsets.UTF_8));
+        int lineno = 0;
+        String line;
+        while ((line = in.readLine()) != null) {
+            lineno++;
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            Commandline cl = new Commandline(line);
+            PrintStream out = defaultOut;
+            String query = null;
+            String[] args = cl.getCommandline();
+            int i = 0;
+            while (i < args.length) {
+                String arg = args[i];
+                if ("-o".equals(arg) || "-output".equals(arg) || "--output".equals(arg)) {
+                    i++;
+                    out = new PrintStream(new FileOutputStream(new File(args[i])), true);
+                } else if ("-q".equals(arg) || "-query".equals(arg) || "--query".equals(arg)) {
+                    i++;
+                    query = args[i];
+                    if (query.startsWith("%")) {
+                        throw new RuntimeException(String.format(
+                            "%s:%d: script does not support %% queries", scriptPath, lineno));
+                    }
+                } else {
+                    throw new RuntimeException(String.format(
+                        "%s:%d: script supports only -q and -o", scriptPath, lineno));
+                }
+                i++;
+            }
+            if (query == null || query.startsWith("%")) {
+                throw new RuntimeException(String.format(
+                    "%s:%d: script line requires -q", scriptPath, lineno));
+            }
+            runQuery(query, out);
+            if (out != defaultOut) {
+                out.close();
+            }
+        }
+        in.close();
+    }
+
     private void dumpIds(Iterator<String> ids) throws IOException {
+        docsPrinted = 0;
         while (ids.hasNext()) {
             for (String s : ids.next().split("\\s+")) {
                 int id = Integer.parseInt(s);
                 Document doc = indexReader.document(id);
-                printDocument(doc, id, 1.0f);
+                printDocument(doc, id, 1.0f, defaultOut);
             }
         }
     }
@@ -285,7 +357,7 @@ public final class LuceneQueryTool {
             throw new RuntimeException("Unindexed field: " + field);
         }
         for (Map.Entry<String, Integer> entry : termCountMap.entrySet()) {
-            out.println(entry.getKey() + " (" + entry.getValue() + ")");
+            defaultOut.println(entry.getKey() + " (" + entry.getValue() + ")");
         }
     }
 
@@ -303,12 +375,13 @@ public final class LuceneQueryTool {
             }
             fieldCounts.put(field, count);
             for (Map.Entry<String, Integer> entry : fieldCounts.entrySet()) {
-                out.println(entry.getKey() + ": " + entry.getValue());
+                defaultOut.println(entry.getKey() + ": " + entry.getValue());
             }
         }
     }
 
-    private void runQuery(String queryString) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
+    private void runQuery(String queryString, PrintStream out) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
+        docsPrinted = 0;
         Query query;
         if (queryString == null) {
             query = new MatchAllDocsQuery();
@@ -351,12 +424,12 @@ public final class LuceneQueryTool {
                 }
             }
             if (passedFilter) {
-                printDocument(doc, id, score);
+                printDocument(doc, id, score, out);
             }
         }
     }
 
-    private void printDocument(Document doc, int id, float score) {
+    private void printDocument(Document doc, int id, float score, PrintStream out) {
         List<IndexableField> fields = doc.getFields();
         if (sortFields) {
             Collections.sort(fields, new Comparator<IndexableField>() {
@@ -445,16 +518,16 @@ public final class LuceneQueryTool {
         Options options = new Options();
         Option option;
 
-        option = new Option("i", "index", true, "index (required)");
+        option = new Option("i", "index", true, "index (required, multiple -i searches multiple indexes)");
         option.setRequired(true);
-        option.setArgs(1);
         options.addOption(option);
 
         option = new Option("q", "query", true,
             "(query | %all | %enumerate-fields "
                 + "| %count-fields "
                 + "| %enumerate-terms field "
-                + "| %ids id [id ...] | %id-file file) (required)");
+                + "| %script scriptFile "
+                + "| %ids id [id ...] | %id-file file) (required, scriptFile may contain -q and -o)");
         option.setRequired(true);
         option.setArgs(Option.UNLIMITED_VALUES);
         options.addOption(option);
@@ -501,6 +574,10 @@ public final class LuceneQueryTool {
 
         option = new Option(null, "tabular", false, "print tabular output "
             + "(requires --fields with no multivalued fields)");
+        options.addOption(option);
+
+        option = new Option("o", "output", true, "output file (defaults to standard output)");
+        option.setArgs(1);
         options.addOption(option);
 
         return options;
@@ -559,10 +636,15 @@ public final class LuceneQueryTool {
             System.exit(1);
         }
 
-        String indexPath = cmdline.getOptionValue("index");
-        Directory dir = FSDirectory.open(new File(indexPath));
-        CompositeReader reader = DirectoryReader.open(dir);
-        LuceneQueryTool that = new LuceneQueryTool(reader, System.out);
+        String[] indexPaths = cmdline.getOptionValues("index");
+        IndexReader[] readers = new IndexReader[indexPaths.length];
+        for (int i = 0; i < indexPaths.length; i++) {
+            readers[i] = DirectoryReader.open(FSDirectory.open(new File(indexPaths[i])));
+
+        }
+        IndexReader reader = new MultiReader(readers, true);
+
+        LuceneQueryTool that = new LuceneQueryTool(reader);
 
         String opt;
         opt = cmdline.getOptionValue("query-limit");
@@ -580,6 +662,12 @@ public final class LuceneQueryTool {
         opt = cmdline.getOptionValue("query-field");
         if (opt != null) {
             that.setDefaultField(opt);
+        }
+        opt = cmdline.getOptionValue("output");
+        PrintStream out = null;
+        if (opt != null) {
+            out = new PrintStream(new FileOutputStream(new File(opt)), true);
+            that.setOutputStream(out);
         }
         if (cmdline.hasOption("show-id")) {
             that.setShowId(true);
@@ -619,8 +707,9 @@ public final class LuceneQueryTool {
         }
         opts = cmdline.getOptionValues("query");
         that.run(opts);
-
+        if (out != null) {
+            out.close();
+        }
         reader.close();
-        dir.close();
     }
 }

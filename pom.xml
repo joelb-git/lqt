@@ -34,7 +34,7 @@
               <goal>build-classpath</goal>
             </goals>
             <configuration>
-              <outputFile>classpath.txt</outputFile>
+	      <outputFile>${project.build.directory}/classpath.txt</outputFile>
             </configuration>
           </execution>
         </executions>
@@ -89,6 +89,12 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>12.0</version>
+    </dependency>
+    <dependency>
+      <!-- For Commandline, to parse script lines -->
+      <groupId>org.apache.ant</groupId>
+      <artifactId>ant</artifactId>
+      <version>1.9.4</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
