@@ -34,11 +34,15 @@ project:
 >         --analyzer <arg>       for query, (KeywordAnalyzer | StandardAnalyzer)
 >                                (defaults to KeywordAnalyzer)
 >         --fields <arg>         fields to include in output (defaults to all)
->      -i,--index <arg>          index (required)
+>      -i,--index <arg>          index (required, multiple -i searches multiple
+>                                indexes)
+>      -o,--output <arg>         output file (defaults to standard output)
 >         --output-limit <arg>   max number of docs to output
 >      -q,--query <arg>          (query | %all | %enumerate-fields |
->                                %count-fields | %enumerate-terms field | %ids
->                                id [id ...] | %id-file file) (required)
+>                                %count-fields | %enumerate-terms field |
+>                                %script scriptFile | %ids id [id ...] |
+>                                %id-file file) (required, scriptFile may
+>                                contain -q and -o)
 >         --query-field <arg>    default field for query
 >         --query-limit <arg>    max number of query hits to process
 >         --regex <arg>          filter query by regex, syntax is field:/regex/
