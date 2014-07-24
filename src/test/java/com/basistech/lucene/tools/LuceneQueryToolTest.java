@@ -111,7 +111,7 @@ public class LuceneQueryToolTest {
     public void testQueryAll() throws IOException, ParseException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         PrintStream out = new PrintStream(bytes);
-        LuceneQueryTool lqt = new LuceneQueryTool(reader);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
         lqt.run(new String[]{"%all"});
         List<String> lines = getOutput(bytes);
         assertTrue(lines.contains("longest-mention: Bill Clinton"));
