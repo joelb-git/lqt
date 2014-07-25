@@ -285,6 +285,10 @@ public final class LuceneQueryTool {
             if (line.trim().isEmpty()) {
                 continue;
             }
+            // This is Ant's Commandline class.  We need it because commons-cli
+            // only has an interface from String[], where it expects the shell
+            // has handled the quoting to give you this array.  But here we lines
+            // in a script file and no shell to help us.
             Commandline cl = new Commandline(line);
             PrintStream out = defaultOut;
             String query = null;
