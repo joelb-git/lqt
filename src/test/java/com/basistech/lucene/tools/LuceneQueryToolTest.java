@@ -19,7 +19,9 @@
 
 package com.basistech.lucene.tools;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -38,6 +40,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
@@ -357,6 +360,30 @@ public class LuceneQueryToolTest {
         assertTrue(lines.contains("hillary (1)"));
         assertTrue(lines.contains("laura (1)"));
         assertTrue(lines.contains("texas (2)"));
+    }
+
+    @Test
+    public void testSetOutput() throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader);
+        lqt.setOutputStream(out);
+        lqt.run(new String[]{"%all"});
+        assertTrue(getOutput(bytes).size() > 0);
+    }
+
+    @Test
+    public void testScript() throws Exception {
+        List<String> lines = Lists.newArrayList(
+            "-q context:bush -o target/out1",
+            "-q context:clinton -o target/out2");
+        FileUtils.writeLines(new File("target/script.txt"), lines);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader);
+        lqt.run(new String[]{"%script", "target/script.txt"});
+        lines = FileUtils.readLines(new File("target/out1"), "UTF-8");
+        assertTrue(Joiner.on(",").join(lines).contains("George"));
+        lines = FileUtils.readLines(new File("target/out2"), "UTF-8");
+        assertTrue(Joiner.on(",").join(lines).contains("Bill"));
     }
 
     @Test(expected = RuntimeException.class)

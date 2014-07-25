@@ -34,11 +34,15 @@ project:
 >         --analyzer <arg>       for query, (KeywordAnalyzer | StandardAnalyzer)
 >                                (defaults to KeywordAnalyzer)
 >         --fields <arg>         fields to include in output (defaults to all)
->      -i,--index <arg>          index (required)
+>      -i,--index <arg>          index (required, multiple -i searches multiple
+>                                indexes)
+>      -o,--output <arg>         output file (defaults to standard output)
 >         --output-limit <arg>   max number of docs to output
 >      -q,--query <arg>          (query | %all | %enumerate-fields |
->                                %count-fields | %enumerate-terms field | %ids
->                                id [id ...] | %id-file file) (required)
+>                                %count-fields | %enumerate-terms field |
+>                                %script scriptFile | %ids id [id ...] |
+>                                %id-file file) (required, scriptFile may
+>                                contain -q and -o)
 >         --query-field <arg>    default field for query
 >         --query-limit <arg>    max number of query hits to process
 >         --regex <arg>          filter query by regex, syntax is field:/regex/
@@ -225,6 +229,39 @@ Technology](http://www.basistech.com/).
 >     	at com.basistech.lucene.tools.LuceneQueryTool.runQuery(LuceneQueryTool.java:313)
 >     	at com.basistech.lucene.tools.LuceneQueryTool.run(LuceneQueryTool.java:245)
 >     	at com.basistech.lucene.tools.LuceneQueryTool.main(LuceneQueryTool.java:597)
+
+* Search multiple indexes
+
+  Specifying multiple -i arguments will search over multiple indexes.
+
+>     $ ./lqt -i en_index -q crossdoc-id:Q2643 \
+>     -fields doc-language longest-mention -tabular | column -t -s $'\t'
+>     doc-language  longest-mention
+>     eng           George Harrison
+
+>     $ ./lqt -i en_index -i zh_index -q crossdoc-id:Q2643 \
+>     -fields doc-language longest-mention -tabular | column -t -s $'\t'
+>     doc-language  longest-mention
+>     eng           George Harrison
+>     zho           乔治・哈里森
+
+* Run multiple queries
+
+  Use a script file to run multiple queries in a single lqt process.
+  A script file can currently contain only -q and -o flags.  The -q
+  argument must be a simple query, not a special '%' query.
+
+>     $ cat script.txt
+>     -q crossdoc-id:Q2643 -o out1
+>     -q crossdoc-id:Q2777013 -o out2
+>     
+>     $ ./lqt -i en_index -q %script script.txt -fields longest-mention
+>     
+>     $ cat out1
+>     longest-mention: George Harrison
+>     
+>     $ cat out2
+>     longest-mention: George Costanza
 
 Credits
 -------
