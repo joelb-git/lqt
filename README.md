@@ -70,7 +70,7 @@ Examples
 The following examples use an index that contains a large portion of
 the English and Chinese Wikipedia, used as part of an Entity
 Resolution system we're developing at [Basis
-Technology](http://www.basistech.com/).
+Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 
 * Enumerate the field names
 
