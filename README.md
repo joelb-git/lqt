@@ -54,7 +54,7 @@ project:
 >         --tabular              print tabular output (requires --fields with no
 >                                multivalued fields)
 
-`lqt` currently targets Java 1.6 and Lucene 4.5.0, although I've used
+`lqt` currently targets Java 1.6 and Lucene 4.9.0, although I've used
 it successfully against indexes built with Lucene 4.3.0.
 
 Building
