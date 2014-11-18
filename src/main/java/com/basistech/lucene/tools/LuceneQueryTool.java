@@ -275,53 +275,53 @@ public final class LuceneQueryTool {
     // apply for each script line, overriding the default command line level
     // setting.  But that can come later if we think it's useful.
     void runScript(String scriptPath) throws IOException, ParseException {
-        // Sorry, I'm skipping try/finally until I can move to java 1.7 to get
-        // try-with-resources.  I think we can move to 1.7 soon.
-        BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(scriptPath), Charsets.UTF_8));
-        int lineno = 0;
-        String line;
-        while ((line = in.readLine()) != null) {
-            lineno++;
-            if (line.trim().isEmpty()) {
-                continue;
-            }
-            // This is Ant's Commandline class.  We need it because commons-cli
-            // only has an interface from String[], where it expects the shell
-            // has handled the quoting to give you this array.  But here we lines
-            // in a script file and no shell to help us.
-            Commandline cl = new Commandline(line);
-            PrintStream out = defaultOut;
-            String query = null;
-            String[] args = cl.getCommandline();
-            int i = 0;
-            while (i < args.length) {
-                String arg = args[i];
-                if ("-o".equals(arg) || "-output".equals(arg) || "--output".equals(arg)) {
-                    i++;
-                    out = new PrintStream(new FileOutputStream(new File(args[i])), true);
-                } else if ("-q".equals(arg) || "-query".equals(arg) || "--query".equals(arg)) {
-                    i++;
-                    query = args[i];
-                    if (query.startsWith("%")) {
-                        throw new RuntimeException(String.format(
-                            "%s:%d: script does not support %% queries", scriptPath, lineno));
-                    }
-                } else {
-                    throw new RuntimeException(String.format(
-                        "%s:%d: script supports only -q and -o", scriptPath, lineno));
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(
+            new FileInputStream(scriptPath), Charsets.UTF_8))) {
+
+            int lineno = 0;
+            String line;
+            while ((line = in.readLine()) != null) {
+                lineno++;
+                if (line.trim().isEmpty()) {
+                    continue;
                 }
-                i++;
-            }
-            if (query == null || query.startsWith("%")) {
-                throw new RuntimeException(String.format(
-                    "%s:%d: script line requires -q", scriptPath, lineno));
-            }
-            runQuery(query, out);
-            if (out != defaultOut) {
-                out.close();
+                // This is Ant's Commandline class.  We need it because commons-cli
+                // only has an interface from String[], where it expects the shell
+                // has handled the quoting to give you this array.  But here we lines
+                // in a script file and no shell to help us.
+                Commandline cl = new Commandline(line);
+                PrintStream out = defaultOut;
+                String query = null;
+                String[] args = cl.getCommandline();
+                int i = 0;
+                while (i < args.length) {
+                    String arg = args[i];
+                    if ("-o".equals(arg) || "-output".equals(arg) || "--output".equals(arg)) {
+                        i++;
+                        out = new PrintStream(new FileOutputStream(new File(args[i])), true);
+                    } else if ("-q".equals(arg) || "-query".equals(arg) || "--query".equals(arg)) {
+                        i++;
+                        query = args[i];
+                        if (query.startsWith("%")) {
+                            throw new RuntimeException(String.format(
+                                "%s:%d: script does not support %% queries", scriptPath, lineno));
+                        }
+                    } else {
+                        throw new RuntimeException(String.format(
+                            "%s:%d: script supports only -q and -o", scriptPath, lineno));
+                    }
+                    i++;
+                }
+                if (query == null || query.startsWith("%")) {
+                    throw new RuntimeException(String.format(
+                        "%s:%d: script line requires -q", scriptPath, lineno));
+                }
+                runQuery(query, out);
+                if (out != defaultOut) {
+                    out.close();
+                }
             }
         }
-        in.close();
     }
 
     private void dumpIds(Iterator<String> ids) throws IOException {
