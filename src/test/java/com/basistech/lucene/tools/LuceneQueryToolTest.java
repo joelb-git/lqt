@@ -421,7 +421,6 @@ public class LuceneQueryToolTest {
         lqt.setFieldNames(Lists.newArrayList("longest-mentionn"));
     }
 
-    @Ignore  //TODO: needs work for lucene 5.x
     @Test(expected = RuntimeException.class)
     public void testInvalidQuery() throws IOException, ParseException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();

@@ -12,7 +12,7 @@
   </scm>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <lucene.version>5.2.1</lucene.version>
+    <lucene.version>5.3.1</lucene.version>
   </properties>
   <build>
     <plugins>

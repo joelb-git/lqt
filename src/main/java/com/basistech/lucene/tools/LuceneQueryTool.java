@@ -41,6 +41,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.index.SlowCompositeReaderWrapper;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -390,6 +391,8 @@ public final class LuceneQueryTool {
     private void runQuery(String queryString, PrintStream out) throws IOException,
         org.apache.lucene.queryparser.classic.ParseException {
 
+        IndexSearcher searcher = new IndexSearcher(indexReader);
+
         docsPrinted = 0;
         Query query;
         if (queryString == null) {
@@ -401,21 +404,19 @@ public final class LuceneQueryTool {
             QueryParser queryParser = new QueryParser(defaultField, analyzer);
             queryParser.setLowercaseExpandedTerms(false);
             query = queryParser.parse(queryString).rewrite(indexReader);
-            // TODO: need to fix for lucene 5.x
-//            Set<Term> terms = Sets.newHashSet();
-//            query.extractTerms(terms);
-//            List<String> invalidFieldNames = Lists.newArrayList();
-//            for (Term term : terms) {
-//                if (!allFieldNames.contains(term.field())) {
-//                    invalidFieldNames.add(term.field());
-//                }
-//            }
-//            if (!invalidFieldNames.isEmpty()) {
-//                throw new RuntimeException("Invalid field names: " + invalidFieldNames);
-//            }
+            Set<Term> terms = Sets.newHashSet();
+            query.createWeight(searcher, false).extractTerms(terms);
+            List<String> invalidFieldNames = Lists.newArrayList();
+            for (Term term : terms) {
+                if (!allFieldNames.contains(term.field())) {
+                    invalidFieldNames.add(term.field());
+                }
+            }
+            if (!invalidFieldNames.isEmpty()) {
+                throw new RuntimeException("Invalid field names: " + invalidFieldNames);
+            }
         }
 
-        IndexSearcher searcher = new IndexSearcher(indexReader);
         TopDocs topDocs = searcher.search(query, queryLimit);
         if (showHits) {
             out.println("totalHits: " + topDocs.totalHits);
