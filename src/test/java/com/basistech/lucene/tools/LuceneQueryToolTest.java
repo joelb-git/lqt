@@ -30,13 +30,14 @@ import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
-import org.apache.lucene.util.Version;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -58,8 +59,8 @@ public class LuceneQueryToolTest {
     public static void oneTimeSetup() throws IOException, ParseException {
         LuceneQueryToolTest.showOutput = false;  // for debugging tests
         Directory dir = new RAMDirectory();
-        Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_45);
-        IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_45, analyzer);
+        Analyzer analyzer = new StandardAnalyzer();
+        IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter writer = new IndexWriter(dir, config);
         Document doc = new Document();
         doc.add(new Field("longest-mention", "Bill Clinton", StringField.TYPE_STORED));
@@ -78,7 +79,7 @@ public class LuceneQueryToolTest {
         doc.add(new Field("bbb", "bar", StringField.TYPE_STORED));
         doc.add(new Field("aaa", "foo", StringField.TYPE_STORED));
         FieldType typeUnindexed = new FieldType(StringField.TYPE_STORED);
-        typeUnindexed.setIndexed(false);
+        typeUnindexed.setIndexOptions(IndexOptions.NONE);
         doc.add(new Field("zzz", "foo", typeUnindexed));
         writer.addDocument(doc);
         writer.close();

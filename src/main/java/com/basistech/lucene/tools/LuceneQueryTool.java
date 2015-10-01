@@ -34,7 +34,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexReader;
@@ -52,7 +52,6 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.Version;
 import org.apache.tools.ant.types.Commandline;
 
 import java.io.BufferedReader;
@@ -64,6 +63,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -160,7 +161,7 @@ public final class LuceneQueryTool {
         if ("KeywordAnalyzer".equals(analyzerString)) {
             this.analyzer = new KeywordAnalyzer();
         } else if ("StandardAnalyzer".equals(analyzerString)) {
-            this.analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
+            this.analyzer = new StandardAnalyzer();
         } else {
             throw new RuntimeException(
                     String.format("Invalid analyzer %s: %s",
@@ -339,17 +340,17 @@ public final class LuceneQueryTool {
         if (!allFieldNames.contains(field)) {
             throw new RuntimeException("Invalid field name: " + field);
         }
-        List<AtomicReaderContext> leaves = indexReader.leaves();
+        List<LeafReaderContext> leaves = indexReader.leaves();
         TermsEnum termsEnum = null;
         boolean unindexedField = true;
         Map<String, Integer> termCountMap = new TreeMap<String, Integer>();
-        for (AtomicReaderContext leaf : leaves) {
+        for (LeafReaderContext leaf : leaves) {
             Terms terms = leaf.reader().terms(field);
             if (terms == null) {
                 continue;
             }
             unindexedField = false;
-            termsEnum = terms.iterator(termsEnum);
+            termsEnum = terms.iterator();
             BytesRef bytesRef;
             while ((bytesRef = termsEnum.next()) != null) {
                 String term = bytesRef.utf8ToString();
@@ -370,10 +371,10 @@ public final class LuceneQueryTool {
 
     private void countFields() throws IOException {
         for (String field : allFieldNames) {
-            List<AtomicReaderContext> leaves = indexReader.leaves();
+            List<LeafReaderContext> leaves = indexReader.leaves();
             Map<String, Integer> fieldCounts = new TreeMap<String, Integer>();
             int count = 0;
-            for (AtomicReaderContext leaf : leaves) {
+            for (LeafReaderContext leaf : leaves) {
                 Terms terms = leaf.reader().terms(field);
                 if (terms == null) {
                     continue;
@@ -387,7 +388,11 @@ public final class LuceneQueryTool {
         }
     }
 
-    private void runQuery(String queryString, PrintStream out) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
+    private void runQuery(String queryString, PrintStream out) throws IOException,
+        org.apache.lucene.queryparser.classic.ParseException {
+
+        IndexSearcher searcher = new IndexSearcher(indexReader);
+
         docsPrinted = 0;
         Query query;
         if (queryString == null) {
@@ -396,11 +401,11 @@ public final class LuceneQueryTool {
             if (!queryString.contains(":") && defaultField == null) {
                 throw new RuntimeException("query has no ':' and no query-field defined");
             }
-            QueryParser queryParser = new QueryParser(Version.LUCENE_4_9, defaultField, analyzer);
+            QueryParser queryParser = new QueryParser(defaultField, analyzer);
             queryParser.setLowercaseExpandedTerms(false);
             query = queryParser.parse(queryString).rewrite(indexReader);
             Set<Term> terms = Sets.newHashSet();
-            query.extractTerms(terms);
+            query.createWeight(searcher, false).extractTerms(terms);
             List<String> invalidFieldNames = Lists.newArrayList();
             for (Term term : terms) {
                 if (!allFieldNames.contains(term.field())) {
@@ -412,7 +417,6 @@ public final class LuceneQueryTool {
             }
         }
 
-        IndexSearcher searcher = new IndexSearcher(indexReader);
         TopDocs topDocs = searcher.search(query, queryLimit);
         if (showHits) {
             out.println("totalHits: " + topDocs.totalHits);
@@ -646,8 +650,8 @@ public final class LuceneQueryTool {
         String[] indexPaths = cmdline.getOptionValues("index");
         IndexReader[] readers = new IndexReader[indexPaths.length];
         for (int i = 0; i < indexPaths.length; i++) {
-            readers[i] = DirectoryReader.open(FSDirectory.open(new File(indexPaths[i])));
-
+            Path path = FileSystems.getDefault().getPath(indexPaths[i]);
+            readers[i] = DirectoryReader.open(FSDirectory.open(path));
         }
         IndexReader reader = new MultiReader(readers, true);
 
