@@ -19,6 +19,7 @@
 
 package com.basistech.lucene.tools;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
@@ -27,6 +28,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
@@ -37,7 +39,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -460,5 +461,48 @@ public class LuceneQueryToolTest {
         PrintStream out = new PrintStream(bytes);
         LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
         lqt.run(new String[]{"%enumerate-terms", "longest-mentionn"});
+    }
+
+    @Test
+    public void testBinaryField() throws IOException, ParseException {
+        Directory dir = new RAMDirectory();
+        Analyzer analyzer = new StandardAnalyzer();
+        IndexWriterConfig config = new IndexWriterConfig(analyzer);
+        IndexWriter writer = new IndexWriter(dir, config);
+        Document doc = new Document();
+        doc.add(new Field("id", "1", StringField.TYPE_STORED));
+        doc.add(new Field("binary-field", "ABC".getBytes(Charsets.UTF_8), StoredField.TYPE));
+        writer.addDocument(doc);
+        writer.close();
+        reader = DirectoryReader.open(dir);
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
+        lqt.run(new String[]{"id:1"});
+        String result = Joiner.on('\n').join(getOutput(bytes));
+        assertTrue(result.contains("[41 42 43]"));  // binary rep of "ABC"
+    }
+
+    @Test
+    public void testBinaryFieldNamed() throws IOException, ParseException {
+        Directory dir = new RAMDirectory();
+        Analyzer analyzer = new StandardAnalyzer();
+        IndexWriterConfig config = new IndexWriterConfig(analyzer);
+        IndexWriter writer = new IndexWriter(dir, config);
+        Document doc = new Document();
+        doc.add(new Field("id", "1", StringField.TYPE_STORED));
+        doc.add(new Field("binary-field", "ABC".getBytes(Charsets.UTF_8), StoredField.TYPE));
+        writer.addDocument(doc);
+        writer.close();
+        reader = DirectoryReader.open(dir);
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
+        lqt.setFieldNames(Lists.newArrayList("binary-field"));
+        lqt.run(new String[]{"id:1"});
+        String result = Joiner.on('\n').join(getOutput(bytes));
+        assertTrue(result.contains("[41 42 43]"));  // binary rep of "ABC"
     }
 }

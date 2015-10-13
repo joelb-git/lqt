@@ -465,18 +465,33 @@ public final class LuceneQueryTool {
             names.add("<score>");
             values.add(Double.toString(score));
         }
+
         if (fieldNames.isEmpty()) {
             for (IndexableField f : fields) {
                 names.add(f.name());
-                values.add(f.stringValue());
+                String value = f.stringValue();
+                if (value == null) {
+                    BytesRef bytes = f.binaryValue();
+                    value = bytes.toString();
+                }
+                values.add(value);
             }
         } else {
             for (String name : fieldNames) {
                 String[] fieldValues = doc.getValues(name);
+                if (fieldValues == null || fieldValues.length == 0) {
+                    BytesRef[] bytesRefs = doc.getBinaryValues(name);
+                    if (bytesRefs != null) {
+                        fieldValues = new String[bytesRefs.length];
+                        for (int i = 0; i < fieldValues.length; i++) {
+                            fieldValues[i] = bytesRefs[i].toString();
+                        }
+                    }
+                }
                 if (fieldValues != null && fieldValues.length != 0) {
                     if (tabular && fieldValues.length > 1) {
                         throw new RuntimeException(
-                                String.format("Multivalued field '%s' not allowed with tabular format", name));
+                            String.format("Multivalued field '%s' not allowed with tabular format", name));
                     }
                     for (String value : fieldValues) {
                         names.add(name);
