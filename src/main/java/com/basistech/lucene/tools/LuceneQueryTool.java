@@ -21,7 +21,10 @@ package com.basistech.lucene.tools;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -66,8 +69,8 @@ import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -232,9 +235,7 @@ public final class LuceneQueryTool {
         if (tabular && fieldNames == null) {
             // Unlike a SQL result set, Lucene docs from a single query (or %all) may
             // have different fields, so a tabular format won't make sense unless we
-            // know the exact fields beforehand.  Also note that multivalued fields
-            // may have a different number of values in each doc, which also won't
-            // make sense with tabular output.  We detect that at runtime.
+            // know the exact fields beforehand.
             throw new RuntimeException("--tabular requires --fields to be passed");
         }
         if (sortFields) {
@@ -341,9 +342,9 @@ public final class LuceneQueryTool {
             throw new RuntimeException("Invalid field name: " + field);
         }
         List<LeafReaderContext> leaves = indexReader.leaves();
-        TermsEnum termsEnum = null;
+        TermsEnum termsEnum;
         boolean unindexedField = true;
-        Map<String, Integer> termCountMap = new TreeMap<String, Integer>();
+        Map<String, Integer> termCountMap = new TreeMap<>();
         for (LeafReaderContext leaf : leaves) {
             Terms terms = leaf.reader().terms(field);
             if (terms == null) {
@@ -372,7 +373,7 @@ public final class LuceneQueryTool {
     private void countFields() throws IOException {
         for (String field : allFieldNames) {
             List<LeafReaderContext> leaves = indexReader.leaves();
-            Map<String, Integer> fieldCounts = new TreeMap<String, Integer>();
+            Map<String, Integer> fieldCounts = new TreeMap<>();
             int count = 0;
             for (LeafReaderContext leaf : leaves) {
                 Terms terms = leaf.reader().terms(field);
@@ -441,75 +442,91 @@ public final class LuceneQueryTool {
     }
 
     private void printDocument(Document doc, int id, float score, PrintStream out) {
-        List<IndexableField> fields = doc.getFields();
-        if (sortFields) {
-            Collections.sort(fields, new Comparator<IndexableField>() {
-                @Override
-                public int compare(IndexableField o1, IndexableField o2) {
-                    int ret = o1.name().compareTo(o2.name());
-                    if (ret == 0) {
-                        ret = o1.stringValue().compareTo(o2.stringValue());
-                    }
-                    return ret;
-                }
-            });
+        Multimap<String, String> data = ArrayListMultimap.create();
+        List<String> orderedFieldNames = Lists.newArrayList(fieldNames);
+        if (showScore) {
+            orderedFieldNames.add("<score>");
+            data.put("<score>", Double.toString(score));
+        }
+        if (showId) {
+            orderedFieldNames.add("<id>");
+            data.put("<id>", Integer.toString(id));
         }
 
-        List<String> names = Lists.newArrayList();
-        List<String> values = Lists.newArrayList();
-        if (showId) {
-            names.add("<id>");
-            values.add(Integer.toString(id));
-        }
-        if (showScore) {
-            names.add("<score>");
-            values.add(Double.toString(score));
-        }
+        Set<String> setFieldNames = Sets.newHashSet();
         if (fieldNames.isEmpty()) {
-            for (IndexableField f : fields) {
-                names.add(f.name());
-                values.add(f.stringValue());
+            for (IndexableField f : doc.getFields()) {
+                if (!setFieldNames.contains(f.name())) {
+                    orderedFieldNames.add(f.name());
+                }
+                setFieldNames.add(f.name());
             }
         } else {
-            for (String name : fieldNames) {
-                String[] fieldValues = doc.getValues(name);
-                if (fieldValues != null && fieldValues.length != 0) {
-                    if (tabular && fieldValues.length > 1) {
-                        throw new RuntimeException(
-                                String.format("Multivalued field '%s' not allowed with tabular format", name));
-                    }
-                    for (String value : fieldValues) {
-                        names.add(name);
-                        values.add(value);
-                    }
+            setFieldNames.addAll(fieldNames);
+        }
+        if (sortFields) {
+            Collections.sort(orderedFieldNames);
+        }
+
+        for (IndexableField f : doc.getFields()) {
+            if (setFieldNames.contains(f.name())) {
+                if (f.stringValue() != null) {
+                    data.put(f.name(), f.stringValue());
                 } else {
-                    names.add(name);
-                    values.add("null");
+                    data.put(f.name(), "null");
                 }
             }
         }
 
         if (docsPrinted == 0 && tabular && !suppressNames) {
-            out.println(Joiner.on('\t').join(names));
+            out.println(Joiner.on('\t').join(orderedFieldNames));
         }
 
         String formatted;
+        StringBuilder sb = new StringBuilder();
         if (tabular) {
-            formatted = Joiner.on('\t').join(values);
-        } else {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < values.size(); i++) {
-                if (!suppressNames) {
-                    sb.append(names.get(i));
-                    sb.append(": ");
+            for (String name : orderedFieldNames) {
+                Collection<String> values = data.get(name);
+                if (values.size() == 1) {
+                    sb.append(Iterables.getOnlyElement(values));
+                } else if (values.isEmpty()) {
+                    sb.append("null");
+                } else {
+                    sb.append(values);
                 }
-                sb.append(values.get(i));
-                if (i != values.size() - 1) {
-                    sb.append(LINE_SEPARATOR);
-                }
+                sb.append('\t');
             }
-            formatted = sb.toString();
+        } else {
+            for (String name : orderedFieldNames) {
+                Collection<String> values = data.get(name);
+                if (values.size() == 1) {
+                    if (!suppressNames) {
+                        sb.append(name);
+                        sb.append(": ");
+                    }
+                    sb.append(Iterables.getOnlyElement(values));
+                } else if (values.isEmpty()) {
+                    if (!suppressNames) {
+                        sb.append(name);
+                        sb.append(": ");
+                    }
+                    sb.append("null");
+                } else {
+                    for (String value : values) {
+                        if (!suppressNames) {
+                            sb.append(name);
+                            sb.append(": ");
+                        }
+                        sb.append(value);
+                        sb.append(LINE_SEPARATOR);
+                    }
+                    sb.deleteCharAt(sb.length() - 1);
+                }
+                sb.append(LINE_SEPARATOR);
+            }
         }
+        sb.deleteCharAt(sb.length() - 1);
+        formatted = sb.toString();
         if (!formatted.isEmpty()) {
             if (docsPrinted > 0 && !tabular) {
                 out.println();

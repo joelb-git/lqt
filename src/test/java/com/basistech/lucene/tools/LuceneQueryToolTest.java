@@ -201,8 +201,8 @@ public class LuceneQueryToolTest {
         lqt.run(new String[]{"%ids", "3"});
         List<String> lines = getOutput(bytes);
         assertEquals("aaa: foo", lines.get(0));
-        assertEquals("bbb: bar", lines.get(1));
-        assertEquals("bbb: foo", lines.get(2));
+        assertEquals("bbb: foo", lines.get(1));
+        assertEquals("bbb: bar", lines.get(2));
     }
 
     @Test
@@ -385,16 +385,6 @@ public class LuceneQueryToolTest {
         assertTrue(Joiner.on(",").join(lines).contains("George"));
         lines = FileUtils.readLines(new File("target/out2"), "UTF-8");
         assertTrue(Joiner.on(",").join(lines).contains("Bill"));
-    }
-
-    @Test(expected = RuntimeException.class)
-    public void testTabularMultivalued() throws IOException, ParseException {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        PrintStream out = new PrintStream(bytes);
-        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
-        lqt.setFieldNames(Lists.newArrayList("bbb"));
-        lqt.setTabular(true);
-        lqt.run(new String[]{"%ids", "3"});
     }
 
     @Test(expected = RuntimeException.class)
