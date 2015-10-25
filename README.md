@@ -17,10 +17,7 @@ index inspection, but we were looking for something to help with:
 * working with non-ASCII characters on remote machines without dealing
   with X fonts
 
-* avoid long Luke startup time for large indexes
-
-`lqt` is simple - really just one Java file - but it has proven to be
-very useful for our Lucene projects.
+* avoiding long Luke startup time for large indexes
 
 Usage
 -----
@@ -34,6 +31,8 @@ project:
 >         --analyzer <arg>       for query, (KeywordAnalyzer | StandardAnalyzer)
 >                                (defaults to KeywordAnalyzer)
 >         --fields <arg>         fields to include in output (defaults to all)
+>         --format <arg>         output format (multiline | tabular | json |
+>                                json-pretty) (defaults to multiline)
 >      -i,--index <arg>          index (required, multiple -i searches multiple
 >                                indexes)
 >      -o,--output <arg>         output file (defaults to standard output)
@@ -51,12 +50,11 @@ project:
 >         --show-score           show score in results
 >         --sort-fields          sort fields within document
 >         --suppress-names       suppress printing of field names
->         --tabular              print tabular output (requires --fields with no
->                                multivalued fields)
+>         --tabular              print tabular output (requires --fields)
 
-`lqt` currently targets Lucene 5.3.1, although I've used it
-successfully against indexes built with Lucene 4.x.  Lucene started to
-target Java 1.7 in 4.8.0, so lqt also requires Java 1.7.
+`lqt` currently targets Lucene 5.3.1, although it may work against
+indexes built with Lucene 4.x.  Lucene started to target Java 1.7 in
+4.8.0, so lqt also requires Java 1.7.
 
 Building
 --------
@@ -111,7 +109,8 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 
   The special query `%all` will return all documents.  The default
   format prints fields vertically.  Multivalued fields are printed one
-  after another.
+  after another.  Tab-separated and json output formats are also
+  supported.
 
 >     $ ./lqt -i /tmp/index -q %all | less
 >     bt_rni_NameHRK_encodedName: STN
@@ -263,6 +262,52 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 >     
 >     $ cat out2
 >     longest-mention: George Costanza
+
+* JSON-formatted output
+
+>     $ ./lqt -i ~/tmp/index -q %all -query-limit 9 \
+>     -fields crossdoc-id longest-mention mention -format json
+>     {"crossdoc-id":"Q3108582","longest-mention":"Congenital glaucoma"}
+>     {"crossdoc-id":"Q1032963","mention":"Joseph Incandela Joseph","longest-mention":"Joseph Incandela"}
+>     {"crossdoc-id":"Q7397788","longest-mention":"Sadegh Gashni"}
+>     {"crossdoc-id":"Q4351870","mention":"Daniel","longest-mention":"Debra Daniel"}
+>     {"crossdoc-id":"Q8077460","longest-mention":"Çaltıbükü"}
+>     {"crossdoc-id":"Q4833500","longest-mention":"Aşağıkükür"}
+>     {"crossdoc-id":"Q4708807","longest-mention":"Alataş"}
+>     {"crossdoc-id":"Q3221270","longest-mention":"Eugenia Hirivskaya"}
+>     {"crossdoc-id":"Q6181927","mention":["Jeremy Joseph Stevenson","Jeremy","Stevenson","Stevenson"],
+>      "longest-mention":"Jeremy Stevenson"}
+
+* JSON with pretty-printing
+
+>     $ ./lqt -i ~/tmp/index -q %all -query-limit 9 \
+>     -fields crossdoc-id longest-mention mention -format json-pretty
+>     ...
+>     {
+>       "crossdoc-id" : "Q3221270",
+>       "longest-mention" : "Eugenia Hirivskaya"
+>     }
+>     {
+>       "crossdoc-id" : "Q6181927",
+>       "mention" : [ "Jeremy Joseph Stevenson", "Jeremy", "Stevenson", "Stevenson" ],
+>       "longest-mention" : "Jeremy Stevenson"
+>     }
+
+You can post-process json output with [jq](http://stedolan.github.io/jq/):
+
+>     $ ./lqt -i ~/tmp/index -q %all -query-limit 9 \
+>     -fields crossdoc-id longest-mention mention -format json | jq .
+...
+>     {
+>       "crossdoc-id": "Q6181927",
+>       "mention": [
+>         "Jeremy Joseph Stevenson",
+>         "Jeremy",
+>         "Stevenson",
+>         "Stevenson"
+>       ],
+>       "longest-mention": "Jeremy Stevenson"
+>     }
 
 Credits
 -------

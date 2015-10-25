@@ -22,7 +22,6 @@ package com.basistech.lucene.tools;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -69,7 +68,6 @@ import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -89,6 +87,8 @@ import java.util.regex.Pattern;
  *     --analyzer <arg>       for query, (KeywordAnalyzer | StandardAnalyzer)
  *                            (defaults to KeywordAnalyzer)
  *     --fields <arg>         fields to include in output (defaults to all)
+ *     --format <arg>         output format (multiline | tabular | json |
+ *                            json-pretty) (defaults to multiline)
  *  -i,--index <arg>          index (required, multiple -i searches multiple
  *                            indexes)
  *  -o,--output <arg>         output file (defaults to standard output)
@@ -106,12 +106,10 @@ import java.util.regex.Pattern;
  *     --show-score           show score in results
  *     --sort-fields          sort fields within document
  *     --suppress-names       suppress printing of field names
- *     --tabular              print tabular output (requires --fields with no
- *                            multivalued fields)
+ *     --tabular              print tabular output (requires --fields)
  * </pre>
  */
 public final class LuceneQueryTool {
-    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
     private List<String> fieldNames;
     private Set<String> allFieldNames;
     private int queryLimit;
@@ -124,11 +122,10 @@ public final class LuceneQueryTool {
     private boolean sortFields;
     private Analyzer analyzer;
     private String defaultField;
-    private boolean tabular;
-    private boolean suppressNames;
     private IndexReader indexReader;
     private PrintStream defaultOut;
     private int docsPrinted;
+    private Formatter formatter;
 
     LuceneQueryTool(IndexReader reader, PrintStream out) throws IOException {
         this.indexReader = reader;
@@ -141,6 +138,7 @@ public final class LuceneQueryTool {
         for (FieldInfo fieldInfo : SlowCompositeReaderWrapper.wrap(reader).getFieldInfos()) {
             allFieldNames.add(fieldInfo.name);
         }
+        this.formatter = Formatter.newInstance(Formatter.Format.MULTILINE, false);
     }
 
     LuceneQueryTool(IndexReader reader) throws IOException {
@@ -219,12 +217,8 @@ public final class LuceneQueryTool {
         this.defaultField = defaultField;
     }
 
-    void setSuppressNames(boolean suppressNames) {
-        this.suppressNames = suppressNames;
-    }
-
-    void setTabular(boolean tabular) {
-        this.tabular = tabular;
+    public void setFormatter(Formatter formatter) {
+        this.formatter = formatter;
     }
 
     void run(String[] queryOpts) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
@@ -232,12 +226,13 @@ public final class LuceneQueryTool {
     }
 
     void run(String[] queryOpts, PrintStream out) throws IOException, org.apache.lucene.queryparser.classic.ParseException {
-        if (tabular && fieldNames == null) {
+        if (formatter.getFormat() == Formatter.Format.TABULAR && fieldNames.isEmpty()) {
             // Unlike a SQL result set, Lucene docs from a single query (or %all) may
             // have different fields, so a tabular format won't make sense unless we
             // know the exact fields beforehand.
             throw new RuntimeException("--tabular requires --fields to be passed");
         }
+
         if (sortFields) {
             Collections.sort(fieldNames);
         }
@@ -389,11 +384,9 @@ public final class LuceneQueryTool {
         }
     }
 
-    private void runQuery(String queryString, PrintStream out) throws IOException,
-        org.apache.lucene.queryparser.classic.ParseException {
-
+    private void runQuery(String queryString, PrintStream out)
+        throws IOException, org.apache.lucene.queryparser.classic.ParseException {
         IndexSearcher searcher = new IndexSearcher(indexReader);
-
         docsPrinted = 0;
         Query query;
         if (queryString == null) {
@@ -441,17 +434,19 @@ public final class LuceneQueryTool {
         }
     }
 
-    private void printDocument(Document doc, int id, float score, PrintStream out) {
+    private void printDocument(Document doc, int id, float score,
+                               PrintStream out) {
         Multimap<String, String> data = ArrayListMultimap.create();
-        List<String> orderedFieldNames = Lists.newArrayList(fieldNames);
-        if (showScore) {
-            orderedFieldNames.add("<score>");
-            data.put("<score>", Double.toString(score));
-        }
+        List<String> orderedFieldNames = Lists.newArrayList();
         if (showId) {
             orderedFieldNames.add("<id>");
             data.put("<id>", Integer.toString(id));
         }
+        if (showScore) {
+            orderedFieldNames.add("<score>");
+            data.put("<score>", Double.toString(score));
+        }
+        orderedFieldNames.addAll(fieldNames);
 
         Set<String> setFieldNames = Sets.newHashSet();
         if (fieldNames.isEmpty()) {
@@ -478,57 +473,16 @@ public final class LuceneQueryTool {
             }
         }
 
-        if (docsPrinted == 0 && tabular && !suppressNames) {
+        if (docsPrinted == 0
+            && formatter.getFormat() == Formatter.Format.TABULAR
+            && !formatter.suppressNames()) {
+
             out.println(Joiner.on('\t').join(orderedFieldNames));
         }
 
-        String formatted;
-        StringBuilder sb = new StringBuilder();
-        if (tabular) {
-            for (String name : orderedFieldNames) {
-                Collection<String> values = data.get(name);
-                if (values.size() == 1) {
-                    sb.append(Iterables.getOnlyElement(values));
-                } else if (values.isEmpty()) {
-                    sb.append("null");
-                } else {
-                    sb.append(values);
-                }
-                sb.append('\t');
-            }
-        } else {
-            for (String name : orderedFieldNames) {
-                Collection<String> values = data.get(name);
-                if (values.size() == 1) {
-                    if (!suppressNames) {
-                        sb.append(name);
-                        sb.append(": ");
-                    }
-                    sb.append(Iterables.getOnlyElement(values));
-                } else if (values.isEmpty()) {
-                    if (!suppressNames) {
-                        sb.append(name);
-                        sb.append(": ");
-                    }
-                    sb.append("null");
-                } else {
-                    for (String value : values) {
-                        if (!suppressNames) {
-                            sb.append(name);
-                            sb.append(": ");
-                        }
-                        sb.append(value);
-                        sb.append(LINE_SEPARATOR);
-                    }
-                    sb.deleteCharAt(sb.length() - 1);
-                }
-                sb.append(LINE_SEPARATOR);
-            }
-        }
-        sb.deleteCharAt(sb.length() - 1);
-        formatted = sb.toString();
+        String formatted = formatter.format(orderedFieldNames, data);
         if (!formatted.isEmpty()) {
-            if (docsPrinted > 0 && !tabular) {
+            if (docsPrinted > 0 && formatter.getFormat() == Formatter.Format.MULTILINE) {
                 out.println();
             }
             out.println(formatted);
@@ -601,7 +555,12 @@ public final class LuceneQueryTool {
         options.addOption(option);
 
         option = new Option(null, "tabular", false, "print tabular output "
-            + "(requires --fields with no multivalued fields)");
+            + "(requires --fields)");
+        options.addOption(option);
+
+        option = new Option(null, "format", true, "output format (multiline | tabular | json | json-pretty) "
+            + "(defaults to multiline)");
+        option.setArgs(1);
         options.addOption(option);
 
         option = new Option("o", "output", true, "output file (defaults to standard output)");
@@ -709,12 +668,18 @@ public final class LuceneQueryTool {
         if (cmdline.hasOption("sort-fields")) {
             that.setSortFields(true);
         }
-        if (cmdline.hasOption("suppress-names")) {
-            that.setSuppressNames(true);
+
+        boolean suppressNames = cmdline.hasOption("suppress-names");
+        Formatter.Format format = Formatter.Format.MULTILINE;
+        opt = cmdline.getOptionValue("format");
+        if (opt != null) {
+            format = Formatter.Format.fromName(opt);
         }
         if (cmdline.hasOption("tabular")) {
-            that.setTabular(true);
+            // compatibility option
+            format = Formatter.Format.TABULAR;
         }
+        that.setFormatter(Formatter.newInstance(format, suppressNames));
 
         String[] opts;
         opts = cmdline.getOptionValues("fields");
