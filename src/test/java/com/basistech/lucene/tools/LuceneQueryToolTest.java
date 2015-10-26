@@ -37,7 +37,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -201,8 +200,8 @@ public class LuceneQueryToolTest {
         lqt.run(new String[]{"%ids", "3"});
         List<String> lines = getOutput(bytes);
         assertEquals("aaa: foo", lines.get(0));
-        assertEquals("bbb: bar", lines.get(1));
-        assertEquals("bbb: foo", lines.get(2));
+        assertEquals("bbb: foo", lines.get(1));
+        assertEquals("bbb: bar", lines.get(2));
     }
 
     @Test
@@ -294,7 +293,7 @@ public class LuceneQueryToolTest {
         PrintStream out = new PrintStream(bytes);
         LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
         lqt.setFieldNames(Lists.newArrayList("longest-mention"));
-        lqt.setTabular(true);
+        lqt.setFormatter(Formatter.newInstance(Formatter.Format.TABULAR, false));
         lqt.run(new String[]{"%ids", "0"});
         List<String> lines = getOutput(bytes);
         assertEquals(2, lines.size());
@@ -308,8 +307,7 @@ public class LuceneQueryToolTest {
         PrintStream out = new PrintStream(bytes);
         LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
         lqt.setFieldNames(Lists.newArrayList("longest-mention"));
-        lqt.setTabular(true);
-        lqt.setSuppressNames(true);
+        lqt.setFormatter(Formatter.newInstance(Formatter.Format.TABULAR, true));
         lqt.run(new String[]{"%ids", "0"});
         List<String> lines = getOutput(bytes);
         assertEquals(1, lines.size());
@@ -388,16 +386,6 @@ public class LuceneQueryToolTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void testTabularMultivalued() throws IOException, ParseException {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        PrintStream out = new PrintStream(bytes);
-        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
-        lqt.setFieldNames(Lists.newArrayList("bbb"));
-        lqt.setTabular(true);
-        lqt.run(new String[]{"%ids", "3"});
-    }
-
-    @Test(expected = RuntimeException.class)
     public void testInvalidAnalyzer() throws IOException, ParseException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         PrintStream out = new PrintStream(bytes);
@@ -461,4 +449,31 @@ public class LuceneQueryToolTest {
         LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
         lqt.run(new String[]{"%enumerate-terms", "longest-mentionn"});
     }
+
+    @Test
+    public void testJson() throws IOException, ParseException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
+        lqt.setFormatter(Formatter.newInstance(Formatter.Format.JSON, false));
+        lqt.run(new String[]{"%ids", "0"});
+        List<String> lines = getOutput(bytes);
+        assertEquals(1, lines.size());
+        assertEquals("{\"longest-mention\":\"Bill Clinton\"}", lines.get(0));
+    }
+
+    @Test
+    public void testJsonPretty() throws IOException, ParseException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(bytes);
+        LuceneQueryTool lqt = new LuceneQueryTool(reader, out);
+        lqt.setFormatter(Formatter.newInstance(Formatter.Format.JSON_PRETTY, false));
+        lqt.run(new String[]{"%ids", "0"});
+        List<String> lines = getOutput(bytes);
+        assertEquals(3, lines.size());
+        assertEquals("{", lines.get(0));
+        assertEquals("  \"longest-mention\" : \"Bill Clinton\"", lines.get(1));
+        assertEquals("}", lines.get(2));
+    }
+
 }
