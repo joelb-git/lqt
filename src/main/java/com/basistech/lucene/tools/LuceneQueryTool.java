@@ -434,6 +434,15 @@ public final class LuceneQueryTool {
         }
     }
 
+    private String formatBinary(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("0x");
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
     private void printDocument(Document doc, int id, float score,
                                PrintStream out) {
         Multimap<String, String> data = ArrayListMultimap.create();
@@ -467,6 +476,8 @@ public final class LuceneQueryTool {
             if (setFieldNames.contains(f.name())) {
                 if (f.stringValue() != null) {
                     data.put(f.name(), f.stringValue());
+                } else if (f.binaryValue() != null) {
+                    data.put(f.name(), formatBinary(f.binaryValue().bytes));
                 } else {
                     data.put(f.name(), "null");
                 }
