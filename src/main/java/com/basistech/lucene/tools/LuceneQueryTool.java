@@ -84,23 +84,23 @@ import java.util.regex.Pattern;
  *
  * <pre>
  * usage: LuceneQueryTool [options]
- *     --analyzer <arg>       for query, (KeywordAnalyzer | StandardAnalyzer)
+ *     --analyzer &lt;arg&gt;       for query, (KeywordAnalyzer | StandardAnalyzer)
  *                            (defaults to KeywordAnalyzer)
- *     --fields <arg>         fields to include in output (defaults to all)
- *     --format <arg>         output format (multiline | tabular | json |
+ *     --fields &lt;arg&gt;         fields to include in output (defaults to all)
+ *     --format &lt;arg&gt;         output format (multiline | tabular | json |
  *                            json-pretty) (defaults to multiline)
- *  -i,--index <arg>          index (required, multiple -i searches multiple
+ *  -i,--index &lt;arg&gt;          index (required, multiple -i searches multiple
  *                            indexes)
- *  -o,--output <arg>         output file (defaults to standard output)
- *     --output-limit <arg>   max number of docs to output
- *  -q,--query <arg>          (query | %all | %enumerate-fields |
+ *  -o,--output &lt;arg&gt;         output file (defaults to standard output)
+ *     --output-limit &lt;arg&gt;   max number of docs to output
+ *  -q,--query &lt;arg&gt;          (query | %all | %enumerate-fields |
  *                            %count-fields | %enumerate-terms field |
  *                            %script scriptFile | %ids id [id ...] |
  *                            %id-file file) (required, scriptFile may
  *                            contain -q and -o)
- *     --query-field <arg>    default field for query
- *     --query-limit <arg>    max number of query hits to process
- *     --regex <arg>          filter query by regex, syntax is field:/regex/
+ *     --query-field &lt;arg&gt;    default field for query
+ *     --query-limit &lt;arg&gt;    max number of query hits to process
+ *     --regex &lt;arg&gt;          filter query by regex, syntax is field:/regex/
  *     --show-hits            show total hit count
  *     --show-id              show Lucene document id in results
  *     --show-score           show score in results
