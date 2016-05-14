@@ -44,7 +44,7 @@ project:
                              %id-file file) (required, scriptFile may
                              contain -q and -o)
       --query-field <arg>    default field for query
-      --query-limit <arg>    max number of query hits to process
+      --query-limit <arg>    same as --output-limit
       --regex <arg>          filter query by regex, syntax is field:/regex/
       --show-hits            show total hit count
       --show-id              show Lucene document id in results

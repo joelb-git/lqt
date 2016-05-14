@@ -51,7 +51,8 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.tools.ant.types.Commandline;
@@ -99,7 +100,7 @@ import java.util.regex.Pattern;
  *                            %id-file file) (required, scriptFile may
  *                            contain -q and -o)
  *     --query-field &lt;arg&gt;    default field for query
- *     --query-limit &lt;arg&gt;    max number of query hits to process
+ *     --query-limit &lt;arg&gt;    same as --output-limit
  *     --regex &lt;arg&gt;          filter query by regex, syntax is field:/regex/
  *     --show-hits            show total hit count
  *     --show-id              show Lucene document id in results
@@ -112,7 +113,6 @@ import java.util.regex.Pattern;
 public final class LuceneQueryTool {
     private List<String> fieldNames;
     private Set<String> allFieldNames;
-    private int queryLimit;
     private int outputLimit;
     private String regexField;
     private Pattern regex;
@@ -129,7 +129,6 @@ public final class LuceneQueryTool {
 
     LuceneQueryTool(IndexReader reader, PrintStream out) throws IOException {
         this.indexReader = reader;
-        this.queryLimit = Integer.MAX_VALUE;
         this.outputLimit = Integer.MAX_VALUE;
         this.analyzer = new KeywordAnalyzer();
         this.fieldNames = Lists.newArrayList();
@@ -171,8 +170,9 @@ public final class LuceneQueryTool {
         }
     }
 
+    // same as outputLimit; for compatibility
     void setQueryLimit(int queryLimit) {
-        this.queryLimit = queryLimit;
+        this.outputLimit = queryLimit;
     }
 
     void setOutputLimit(int outputLimit) {
@@ -217,7 +217,7 @@ public final class LuceneQueryTool {
         this.defaultField = defaultField;
     }
 
-    public void setFormatter(Formatter formatter) {
+    void setFormatter(Formatter formatter) {
         this.formatter = formatter;
     }
 
@@ -384,9 +384,9 @@ public final class LuceneQueryTool {
         }
     }
 
-    private void runQuery(String queryString, PrintStream out)
+    private void runQuery(String queryString, final PrintStream out)
         throws IOException, org.apache.lucene.queryparser.classic.ParseException {
-        IndexSearcher searcher = new IndexSearcher(indexReader);
+        final IndexSearcher searcher = new IndexSearcher(indexReader);
         docsPrinted = 0;
         Query query;
         if (queryString == null) {
@@ -411,26 +411,51 @@ public final class LuceneQueryTool {
             }
         }
 
-        TopDocs topDocs = searcher.search(query, queryLimit);
-        if (showHits) {
-            out.println("totalHits: " + topDocs.totalHits);
-            out.println();
-        }
-        Set<String> fieldSet = Sets.newHashSet(fieldNames);
-        for (int i = 0; i < topDocs.scoreDocs.length && docsPrinted < outputLimit; i++) {
-            int id = topDocs.scoreDocs[i].doc;
-            float score = topDocs.scoreDocs[i].score;
-            Document doc = fieldSet.isEmpty() ? searcher.doc(id) : searcher.doc(id, fieldSet);
-            boolean passedFilter = regexField == null;
-            if (regexField != null) {
-                String value = doc.get(regexField);
-                if (value != null && regex.matcher(value).matches()) {
-                    passedFilter = true;
+        final Set<String> fieldSet = Sets.newHashSet(fieldNames);
+
+        // use a Collector instead of TopDocs for memory efficiency, especially
+        // for the %all query
+        class MyCollector extends SimpleCollector {
+            private Scorer scorer;
+            private long totalHits;
+
+            @Override
+            public void collect(int id) throws IOException {
+                totalHits++;
+                if (docsPrinted >= outputLimit) {
+                    return;
+                }
+
+                Document doc = fieldSet.isEmpty() ? searcher.doc(id) : searcher.doc(id, fieldSet);
+                boolean passedFilter = regexField == null;
+                if (regexField != null) {
+                    String value = doc.get(regexField);
+                    if (value != null && regex.matcher(value).matches()) {
+                        passedFilter = true;
+                    }
+                }
+                if (passedFilter) {
+                    float score = scorer.score();
+                    printDocument(doc, id, score, out);
                 }
             }
-            if (passedFilter) {
-                printDocument(doc, id, score, out);
+
+            @Override
+            public boolean needsScores() {
+                return true;
             }
+
+            @Override
+            public void setScorer(Scorer scorer) throws IOException {
+                this.scorer = scorer;
+            }
+        }
+
+        MyCollector collector = new MyCollector();
+        searcher.search(query, collector);
+        if (showHits) {
+            out.println("totalHits: " + collector.totalHits);
+            out.println();
         }
     }
 
@@ -536,7 +561,7 @@ public final class LuceneQueryTool {
         option = new Option(null, "sort-fields", false, "sort fields within document");
         options.addOption(option);
 
-        option = new Option(null, "query-limit", true, "max number of query hits to process");
+        option = new Option(null, "query-limit", true, "same as output-limit");
         option.setArgs(1);
         options.addOption(option);
 
