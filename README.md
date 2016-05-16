@@ -107,9 +107,6 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 
 * Count all documents with a c-cluster-id field.
 
-  Note that `-query-limit 0` will provoke a Lucene exception.  Use
-  `output-limit 0` if you want no output except a count.
-
 ```
   $ ./lqt -i /tmp/index -q c-cluster-id:/.*/ -show-hits -output-limit 0
   totalHits: 1693260
@@ -157,7 +154,7 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 
 ```
   $ ./lqt -i /tmp/index -q c-cluster-id:/.*/ \
-  -fields c-cluster-id c-cluster-label -query-limit 5 -tabular
+  -fields c-cluster-id c-cluster-label -output-limit 5 -tabular
   c-cluster-id	c-cluster-label
   en_1176874	Dan O'Keeffe
   en_11768762	Ralph Felton
@@ -191,7 +188,7 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
   $ ./lqt -i /tmp/index \
   -q c-cluster-label:George \
   -fields c-cluster-id c-cluster-label \
-  -query-limit 5 -tabular -show-id -show-score | column -s$'\t' -t
+  -output-limit 5 -tabular -show-id -show-score | column -s$'\t' -t
   <id>     <score>            c-cluster-id  c-cluster-label
   1209985  13.30576229095459  en_114019     George
   1265605  13.30576229095459  en_2505331    George
@@ -206,9 +203,8 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
   query time.  This uses a very limited regex syntax.  `-regex
   field:/.../` applies a full Java regex to each returned document.
   This is much slower, but it can be useful when you need more
-  powerful regexes.  Since this is applied to the results of the
-  query, use `-output-limit` rather than `-query-limit`. For example,
-  find documents with an ideograph in the `longest-mention` field:
+  powerful regexes.  For example, find documents with an ideograph in
+  the `longest-mention` field:
 
 ```
   $ ./lqt -i /tmp/index -q longest-mention:/.*/ \
@@ -296,7 +292,7 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 * JSON-formatted output
 
 ```
-  $ ./lqt -i ~/tmp/index -q %all -query-limit 9 \
+  $ ./lqt -i ~/tmp/index -q %all -output-limit 9 \
   -fields crossdoc-id longest-mention mention -format json
   {"crossdoc-id":"Q3108582","longest-mention":"Congenital glaucoma"}
   {"crossdoc-id":"Q1032963","mention":"Joseph Incandela Joseph","longest-mention":"Joseph Incandela"}
@@ -313,7 +309,7 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 * JSON with pretty-printing
 
 ```
-  $ ./lqt -i ~/tmp/index -q %all -query-limit 9 \
+  $ ./lqt -i ~/tmp/index -q %all -output-limit 9 \
   -fields crossdoc-id longest-mention mention -format json-pretty
   ...
   {
@@ -330,7 +326,7 @@ Technology](http://www.basistech.com/text-analytics/rosette/entity-resolver/).
 You can post-process json output with [jq](http://stedolan.github.io/jq/):
 
 ```
-  $ ./lqt -i ~/tmp/index -q %all -query-limit 9 \
+  $ ./lqt -i ~/tmp/index -q %all -output-limit 9 \
   -fields crossdoc-id longest-mention mention -format json | jq .
   ...
   {
