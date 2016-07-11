@@ -36,13 +36,12 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.MultiReader;
-import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -134,8 +133,10 @@ public final class LuceneQueryTool {
         this.fieldNames = Lists.newArrayList();
         this.defaultOut = out;
         allFieldNames = Sets.newTreeSet();
-        for (FieldInfo fieldInfo : SlowCompositeReaderWrapper.wrap(reader).getFieldInfos()) {
-            allFieldNames.add(fieldInfo.name);
+        for (LeafReaderContext leaf : reader.leaves()) {
+            for (FieldInfo fieldInfo : leaf.reader().getFieldInfos()) {
+                allFieldNames.add(fieldInfo.name);
+            }
         }
         this.formatter = Formatter.newInstance(Formatter.Format.MULTILINE, false);
     }
