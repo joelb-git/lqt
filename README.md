@@ -54,9 +54,9 @@ project:
       --tabular              print tabular output (requires --fields)
 ```
 
-`lqt` currently targets Lucene 5.3.1, although it may work against
-indexes built with Lucene 4.x.  Lucene started to target Java 1.7 in
-4.8.0, so lqt also requires Java 1.7.
+`lqt` currently targets Lucene 6.1.0, although it may work against
+indexes built with Lucene 5.x.  Lucene started to target Java 1.8 in
+6.0.0, so lqt also requires Java 1.8.
 
 Building
 --------
