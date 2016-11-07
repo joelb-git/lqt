@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.basistech.lucene.tools</groupId>
   <artifactId>lqt</artifactId>
-  <version>7-SNAPSHOT</version>
+  <version>7</version>
   <name>lqt</name>
   <scm>
     <connection>scm:git:git@github.com:joelb-git/lqt.git</connection>
     <developerConnection>scm:git:git@github.com:joelb-git/lqt.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>lqt-7</tag>
   </scm>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
