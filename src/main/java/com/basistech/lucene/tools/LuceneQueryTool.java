@@ -419,6 +419,12 @@ public final class LuceneQueryTool {
         class MyCollector extends SimpleCollector {
             private Scorer scorer;
             private long totalHits;
+            private int docBase;
+
+            @Override
+            protected void doSetNextReader(LeafReaderContext context) throws IOException {
+                docBase = context.docBase;
+            }
 
             @Override
             public void collect(int id) throws IOException {
@@ -427,6 +433,7 @@ public final class LuceneQueryTool {
                     return;
                 }
 
+                id += docBase;
                 Document doc = fieldSet.isEmpty() ? searcher.doc(id) : searcher.doc(id, fieldSet);
                 boolean passedFilter = regexField == null;
                 if (regexField != null) {
