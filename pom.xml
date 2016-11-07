@@ -12,7 +12,7 @@
   </scm>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <lucene.version>6.0.1</lucene.version>
+    <lucene.version>6.1.0</lucene.version>
     <lqt-jackson-version>2.6.2</lqt-jackson-version>
   </properties>
   <build>
